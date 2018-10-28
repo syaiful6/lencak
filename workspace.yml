@@ -1,0 +1,22 @@
+name: lencak
+environment:
+  WORKSPACE: lencak
+columns:
+  diskusage:
+    diskusage: ["$PATH"]
+tasks:
+  - name: sleep
+    command: sleep 60
+    service: on
+    metadata:
+      PATH: "/bin"
+  - name: echo
+    command: echo This is a test $PORT
+    environment:
+      PORT: "9032"
+    metadata:
+      PATH: "/bin"
+  - name: ui
+    command: npm run dev
+    metadata:
+      PATH: "/home/syaiful/.nvm/versions/node/v8.11.4/bin"

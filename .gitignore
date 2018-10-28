@@ -1,0 +1,15 @@
+# Compiled Object files, Static and Dynamic libs (Shared Objects)
+*.o
+*.a
+*.so
+
+// vscode
+.vscode
+node_modules
+
+lencak
+lencak.exe
+
+// ui
+ui/dist/css
+ui/dist/js

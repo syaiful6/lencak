@@ -1,0 +1,12 @@
+environment:
+  LENCAK: "true"
+inherit_environment: on
+functions:
+  diskusage:
+    args: ["$PATH"]
+    executor: ['/bin/sh', '-c']
+    command: "du -sh $PATH"
+  gitbranch:
+    args: ["$PATH"]
+    executor: ['/bin/sh', '-c']
+    command: "git --git-dir $PATH/.git rev-parse --abbrev-ref HEAD"

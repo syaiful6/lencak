@@ -204,9 +204,9 @@ func AssetNames() []string {
 // _bindata is a table, holding each asset generator, mapped to its name.
 var _bindata = map[string]func() (*asset, error){
 	"assets/css/bootstrap-3.3.2.min.css": assetsCssBootstrap332MinCss,
-	"assets/css/default.css":             assetsCssDefaultCss,
-	"assets/js/.gitkeep":                 assetsJsGitkeep,
-	"assets/templates/index.html":        assetsTemplatesIndexHtml,
+	"assets/css/default.css": assetsCssDefaultCss,
+	"assets/js/.gitkeep": assetsJsGitkeep,
+	"assets/templates/index.html": assetsTemplatesIndexHtml,
 }
 
 // AssetDir returns the file names below a certain
@@ -248,18 +248,17 @@ type bintree struct {
 	Func     func() (*asset, error)
 	Children map[string]*bintree
 }
-
 var _bintree = &bintree{nil, map[string]*bintree{
-	"assets": {nil, map[string]*bintree{
-		"css": {nil, map[string]*bintree{
-			"bootstrap-3.3.2.min.css": {assetsCssBootstrap332MinCss, map[string]*bintree{}},
-			"default.css":             {assetsCssDefaultCss, map[string]*bintree{}},
+	"assets": &bintree{nil, map[string]*bintree{
+		"css": &bintree{nil, map[string]*bintree{
+			"bootstrap-3.3.2.min.css": &bintree{assetsCssBootstrap332MinCss, map[string]*bintree{}},
+			"default.css": &bintree{assetsCssDefaultCss, map[string]*bintree{}},
 		}},
-		"js": {nil, map[string]*bintree{
-			".gitkeep": {assetsJsGitkeep, map[string]*bintree{}},
+		"js": &bintree{nil, map[string]*bintree{
+			".gitkeep": &bintree{assetsJsGitkeep, map[string]*bintree{}},
 		}},
-		"templates": {nil, map[string]*bintree{
-			"index.html": {assetsTemplatesIndexHtml, map[string]*bintree{}},
+		"templates": &bintree{nil, map[string]*bintree{
+			"index.html": &bintree{assetsTemplatesIndexHtml, map[string]*bintree{}},
 		}},
 	}},
 }}
@@ -310,3 +309,4 @@ func _filePath(dir, name string) string {
 	cannonicalName := strings.Replace(name, "\\", "/", -1)
 	return filepath.Join(append([]string{dir}, strings.Split(cannonicalName, "/")...)...)
 }
+

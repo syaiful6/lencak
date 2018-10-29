@@ -52,11 +52,6 @@ export default (vnode) => {
             title: "Workspaces",
             icon: icons.workspaces,
           },
-          {
-            index,
-            title: 'Tasks',
-            icon: icons.send,
-          }
         ]))).map(tile)
       });
     }

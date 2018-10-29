@@ -26,7 +26,7 @@ DrawerCSS.addStyle(
 DrawerCSS.addStyle(
   ".large-screen-floating-drawer",
   {
-    permanent: false,
+    permanent: true,
     floating: true,
     z: 1,
     border_radius: 4

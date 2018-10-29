@@ -104,10 +104,10 @@ func (t *Task) Start(sync chan string) chan int {
 			ex := <-c
 			c1 <- ex
 			select {
-			case sync <- fmt.Sprintf("task %s started", t.Name):
-				log.Infof("success sending event task started for %s", t.Name)
+			case sync <- fmt.Sprintf("task %s stopped", t.Name):
+				log.Infof("success sending event task stopped for %s", t.Name)
 			default:
-				log.Infof("failed sending event task started for %s", t.Name)
+				log.Infof("failed sending event task stopped for %s", t.Name)
 			}
 			t.ActiveTask = nil
 			if t.Service {

@@ -10,6 +10,7 @@ import (
 	"mime"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -22,6 +23,17 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+const (
+	// Time allowed to write message to the client.
+	wsWriteWait = 10 * time.Second
+
+	// Time allowed to read the next pong message from the client.
+	wsPongWait = 60 * time.Second
+
+	// Send pings to client with this period. Must be less than wsPongWait.
+	wsPingPeriod = (wsPongWait * 9) / 10
+)
+
 // this channel gets notified when process receives signal. It is global to ease unit testing
 var quit = make(chan os.Signal, 1)
 
@@ -29,6 +41,13 @@ type App struct {
 	lencak *Lencak
 	asset  func(string) ([]byte, error)
 	server *http.Server
+}
+
+type WSMessage struct {
+	Workspace string `json:"workspace"`
+	Task string `json:"task"`
+	Service bool `json:"service"`
+	Command string `json:"command"` // only start/stop supported
 }
 
 func NewApp(config *ConfigWorkspaces, asset func(string) ([]byte, error)) *App {
@@ -79,9 +98,26 @@ func countTask(workspaces map[string]*ConfigWorkspace) int {
 	return count
 }
 
+func upgradeCheckOrigin(r *http.Request) bool {
+	origin := r.Header["Origin"]
+	if len(origin) == 0 {
+		return true
+	}
+	u, err := url.Parse(origin[0])
+	if err != nil {
+		return false
+	}
+	uh, _, err1 := net.SplitHostPort(u.Host)
+	oh, _, err2 := net.SplitHostPort(r.Host)
+	if err1 != nil || err2 != nil {
+		return false
+	}
+	return equalASCIIFold(uh, oh)
+}
+
 func (app *App) lencakWebsocket() http.HandlerFunc {
 	// uprader
-	var upgrader = websocket.Upgrader{}
+	var upgrader = websocket.Upgrader{CheckOrigin: upgradeCheckOrigin,}
 
 	return func(w http.ResponseWriter, r *http.Request) {
 		ws, err := upgrader.Upgrade(w, r, nil)
@@ -89,30 +125,81 @@ func (app *App) lencakWebsocket() http.HandlerFunc {
 			log.Errorf("websocket upgrade fail with: %v:", err)
 			return
 		}
-		defer ws.Close()
-		msg, _ := json.Marshal(app.lencak.workspaces)
-		err = ws.WriteMessage(websocket.TextMessage, msg)
+		pingTicker := time.NewTicker(wsPingPeriod)
+
+		defer func() {
+			pingTicker.Stop()
+			ws.Close()
+		}()
 
 		go func() {
+			// write our workspace when they connected
+			app.lencak.Lock()
+			msg, err := json.Marshal(app.lencak.workspaces)
+			app.lencak.Unlock()
+			if err != nil {
+				log.Errorf("websocket error marshalling workspace %s", err.Error())
+				return
+			}
+			ws.SetWriteDeadline(time.Now().Add(wsWriteWait))
+			err = ws.WriteMessage(websocket.TextMessage, msg)
+			if err != nil {
+				return
+			}
 			for {
 				select {
 				case <-app.lencak.sync:
-					msg, _ := json.Marshal(app.lencak.workspaces)
+					app.lencak.Lock()
+					msg, err := json.Marshal(app.lencak.workspaces)
+					app.lencak.Unlock()
+					if err != nil {
+						log.Errorf("websocket error marshalling workspace %s", err.Error())
+						return
+					}
 					err = ws.WriteMessage(websocket.TextMessage, msg)
 					if err != nil {
-						break
+						return
+					}
+
+				case <-pingTicker.C:
+					ws.SetWriteDeadline(time.Now().Add(wsWriteWait))
+					if err = ws.WriteMessage(websocket.PingMessage, []byte{}); err != nil {
+						return
 					}
 				}
 			}
 		}()
 
+		// reader
+		ws.SetReadLimit(512)
+		ws.SetReadDeadline(time.Now().Add(wsPongWait))
+		ws.SetPongHandler(func(string) error {
+			ws.SetReadDeadline(time.Now().Add(wsPongWait)); return nil
+		})
 		for {
-			_, message, err := ws.ReadMessage()
+			mtype, message, err := ws.ReadMessage()
 			if err != nil {
 				break
 			}
-			log.Infof("receive message from websocket %s", string(message))
-			break
+			if mtype == websocket.TextMessage {
+				// unmarshal
+				var wsMsg WSMessage
+				if err = json.Unmarshal(message, &wsMsg); err != nil {
+					break
+				}
+				log.Infof("websocket receive message w: %s, t: %s, c: %s",
+					wsMsg.Workspace, wsMsg.Task, wsMsg.Command)
+				if wsMsg.Workspace != "" && wsMsg.Task != "" {
+					switch wsMsg.Command {
+					case "start":
+						app.lencak.StartTask(wsMsg.Workspace, wsMsg.Task, wsMsg.Service)
+					case "stop":
+						app.lencak.StopTask(wsMsg.Workspace, wsMsg.Task, wsMsg.Service)
+					default:
+						log.Infof("receive message from websocket %s", string(message))
+					}
+				}
+			}
 		}
 	}
 }

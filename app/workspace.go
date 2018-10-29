@@ -2,10 +2,8 @@ package app
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"strings"
-	"sync"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -243,7 +241,6 @@ func configureWorkSpaces(syncChan chan string, globalWorkspace *Workspace, confi
 			}
 		}
 
-		var services []*Task
 		for _, t := range ws.Tasks {
 			log.Infof("=> Creating task: %s", t.Name)
 
@@ -265,37 +262,11 @@ func configureWorkSpaces(syncChan chan string, globalWorkspace *Workspace, confi
 			task := NewTask(t.Name, t.Executor, t.Command, env, t.Service, t.Stdout,
 				t.Stderr, t.Metadata, t.Pwd)
 			if task.Service {
-				services = append(services, task)
+				task.Start(syncChan)
 			}
 			workspace.Tasks[t.Name] = task
-		}
-
-		le := len(services)
-		if le > 0 {
-			log.Infof("=> Found %d service/s", le)
-			var wg sync.WaitGroup
-			wg.Add(le)
-			syncChan2 := make(chan string, le)
-			for k := range services {
-				go startService(&wg, syncChan2, services[k])
-			}
-			wg.Wait()
-			select {
-			case syncChan <- fmt.Sprintf("=> Started %d services", le):
-				log.Infof("=> Started %d services", le)
-			default:
-				log.Infof("=> Started %d services", le)
-			}
 		}
 	}
 
 	return workspaces
-}
-
-func startService(wg *sync.WaitGroup, syncChan chan string, service *Task) {
-	exitChan := service.Start(syncChan)
-	go func() {
-		wg.Done()
-		<-exitChan
-	}()
 }

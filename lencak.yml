@@ -1,6 +1,6 @@
 environment:
   LENCAK: "true"
-inherit_environment: on
+inherit_environment: off
 functions:
   diskusage:
     args: ["$PATH"]

@@ -16,11 +16,7 @@ export default j2c.sheet({
 
       ' .content': {
         'padding': '20px',
-        'max-width': '480px',
-        '@media all and (min-width: 901px)': {
-          'max-width': '850px',
-          'margin': '0 auto',
-        },
+        'width': '100%'
       },
 
       ' .pe-drawer': {

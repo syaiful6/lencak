@@ -1,6 +1,13 @@
 package app
 
+import (
+	"sync"
+
+	log "github.com/sirupsen/logrus"
+)
+
 type Lencak struct {
+	sync.RWMutex
 	config          *ConfigWorkspaces
 	globalWorkspace *Workspace
 	workspaces      map[string]*Workspace
@@ -40,12 +47,15 @@ func (lenc *Lencak) StopTask(workSpaceName, taskName string, disableService bool
 	return lenc.WithWorkspaceTask(workSpaceName, taskName, func(task *Task) {
 		if task.Service && disableService {
 			task.Service = false
+			log.Infof("disabling service %s in workspace %s", taskName, workSpaceName)
 		}
 		task.Stop()
 	})
 }
 
 func (lenc *Lencak) WithWorkspaceTask(workSpaceName, taskName string, f func(*Task)) bool {
+	lenc.Lock()
+	defer lenc.Unlock()
 	if _, ok := lenc.workspaces[workSpaceName]; ok {
 		if task, ok := lenc.workspaces[workSpaceName].Tasks[taskName]; ok {
 			f(task)

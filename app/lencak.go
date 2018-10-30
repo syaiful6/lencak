@@ -5,20 +5,15 @@ import (
 )
 
 type Lencak struct {
-	config          *ConfigWorkspaces
-	globalWorkspace *Workspace
 	workspaces      map[string]*Workspace
 	sync            chan bool
 }
 
-func NewLencak(config *ConfigWorkspaces) *Lencak {
+func NewLencak(config map[string]*ConfigWorkspace) *Lencak {
 	sync := make(chan bool, 256)
-	globalWorkspace := configureGlobalWorkSpace(sync, config.Global)
-	workspaces := configureWorkSpaces(sync, globalWorkspace, config.Workspaces)
+	workspaces := configureWorkSpaces(sync, config)
 
 	return &Lencak{
-		config:          config,
-		globalWorkspace: globalWorkspace,
 		workspaces:      workspaces,
 		sync:            sync,
 	}

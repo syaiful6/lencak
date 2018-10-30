@@ -48,7 +48,7 @@ type WSMessage struct {
 	Command string `json:"command"` // only start/stop supported
 }
 
-func NewApp(config *ConfigWorkspaces, asset func(string) ([]byte, error)) *App {
+func NewApp(config map[string]*ConfigWorkspace, asset func(string) ([]byte, error)) *App {
 	lencak := NewLencak(config)
 
 	router := mux.NewRouter()
@@ -215,7 +215,7 @@ func (app *App) ListenAndServe(addr string) error {
 			for _, t := range ws.Tasks {
 				t.activeMu.Lock()
 				if t.ActiveTask != nil && t.ActiveTask.Cmd != nil && t.ActiveTask.Cmd.Process != nil {
-					t.ActiveTask.Cmd.Process.Kill()
+					t.ActiveTask.Stop(t.KillSignal)
 				}
 				t.activeMu.Unlock()
 			}

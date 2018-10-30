@@ -12,9 +12,6 @@ import (
 )
 
 func main() {
-	global := "lencak.yml"
-	flag.StringVar(&global, "global", global, "global environment configuration")
-
 	addr := ":9056"
 	flag.StringVar(&addr, "addr", addr, "Addr for app to listen")
 
@@ -24,7 +21,7 @@ func main() {
 	if len(workspaces) == 0 {
 		workspaces = append(workspaces, "workspace.yml")
 	}
-	config, err := app.LoadConfig(global, workspaces)
+	config, err := app.LoadConfig(workspaces)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "configuration error: %v\n", err)
 		os.Exit(1)

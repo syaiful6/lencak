@@ -14,3 +14,5 @@ lencak.exe
 ui/dist/css
 ui/dist/js
 assets/js
+
+workspace.yaml

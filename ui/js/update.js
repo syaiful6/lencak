@@ -34,7 +34,11 @@ function update(model, msg) {
         service: typeof msg.payload.service !== 'boolean' ? false : msg.payload.service,
         command: 'start'
       }));
-      return model;
+      return Object.assign({}, model, {
+        [msg.payload.workspace]: Object.assign({}, model[msg.payload.workspace], {
+          status: 'Running'
+        })
+      });
 
     case STOP_TASK:
       socket.send(JSON.stringify({
@@ -43,7 +47,11 @@ function update(model, msg) {
         service: typeof msg.payload.service !== 'boolean' ? false : msg.payload.service,
         command: 'stop'
       }));
-      return model;
+      return Object.assign({}, model, {
+        [msg.payload.workspace]: Object.assign({}, model[msg.payload.workspace], {
+          status: 'Stopped'
+        })
+      });
 
     case CONNECTED:
       return Object.assign({}, model, {

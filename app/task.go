@@ -15,11 +15,11 @@ type Task struct {
 	ID          int
 	Name        string
 	Command     string
+	KillSignal  KillSignal
 	Executor    []string
 	Environment map[string]string
 	Stdout      string
 	Stderr      string
-	Metadata    map[string]string
 	Pwd         string
 
 	activeMu sync.Mutex
@@ -39,7 +39,6 @@ func (t *Task) MarshalJSON() ([]byte, error) {
 		Environment map[string]string `json:"environment"`
 		Stdout      string            `json:"stdout,omitempty"`
 		Stderr      string            `json:"stderr,omitempty"`
-		Metadata    map[string]string `json:"metadata"`
 		Pwd         string            `json:"pwd"`
 		Service     bool              `json:"service"`
 		Status      string            `json:"status"`
@@ -51,14 +50,13 @@ func (t *Task) MarshalJSON() ([]byte, error) {
 		Environment: t.Environment,
 		Stdout:      t.Stdout,
 		Stderr:      t.Stderr,
-		Metadata:    t.Metadata,
 		Pwd:         t.Pwd,
 		Service:     t.Service,
 		Status:      t.Status(),
 	})
 }
 
-func NewTask(name string, executor []string, command string, environment map[string]string, service bool, stdout string, stderr string, metadata map[string]string, pwd string) *Task {
+func NewTask(name string, executor []string, command string, environment map[string]string, service bool, stdout string, stderr string, killSignal  KillSignal, pwd string) *Task {
 	environment = AddDefaultVars(environment)
 
 	if _, ok := environment["TASK"]; !ok {
@@ -71,13 +69,13 @@ func NewTask(name string, executor []string, command string, environment map[str
 	task := &Task{
 		Name:        name,
 		Command:     command,
+		KillSignal:  killSignal,
 		Environment: environment,
 		TaskRuns:    make([]*TaskRun, 0),
 		Service:     service,
 		Executor:    executor,
 		Stdout:      stdout,
 		Stderr:      stderr,
-		Metadata:    metadata,
 		Pwd:         pwd,
 	}
 
@@ -132,7 +130,7 @@ func (t *Task) Stop() {
 	t.activeMu.Lock()
 	defer t.activeMu.Unlock()
 	if t.ActiveTask != nil {
-		t.ActiveTask.Stop()
+		t.ActiveTask.Stop(t.KillSignal)
 		t.ActiveTask = nil
 	}
 }

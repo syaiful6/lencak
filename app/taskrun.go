@@ -170,10 +170,18 @@ func (tr *TaskRun) Start(exitCh chan int) {
 	}()
 }
 
-func (tr *TaskRun) Stop() {
+func (tr *TaskRun) Stop(kill KillSignal) {
 	if tr.Cmd == nil || tr.Cmd.Process == nil {
 		return
 	}
+	kl := string(kill)
 
-	tr.Cmd.Process.Kill()
+	switch kl {
+	case "sigint":
+		tr.Cmd.Process.Signal(syscall.SIGINT)
+	case "sigterm":
+		tr.Cmd.Process.Signal(syscall.SIGINT)
+	default:
+		tr.Cmd.Process.Kill()
+	}
 }

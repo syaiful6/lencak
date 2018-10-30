@@ -45,98 +45,6 @@ func (ws *Workspace) MarshalJSON() ([]byte, error) {
 	})
 }
 
-// GetColumn of workspace
-func (ws *Workspace) GetColumn(global *Workspace, task *Task, name string) string {
-	col := ws.Columns[name]
-	var fn []string
-	var nm string
-	for n, args := range col {
-		nm = n
-		fn = args
-		break
-	}
-	return ws.ExecFunction(global, task, nm, fn...)
-}
-
-func (ws *Workspace) ExecFunction(global *Workspace, task *Task, name string, args ...string) string {
-	log.Infof("Executing function %s: %s", name, args)
-
-	var fn *Function
-	if f, ok := ws.Functions[name]; ok {
-		fn = f
-	} else if f, ok := global.Functions[name]; ok {
-		fn = f
-	} else {
-		log.Warnf("Function not found: %s", name)
-		return ""
-	}
-
-	argmap := make(map[string]string)
-	for i, arg := range fn.Args {
-		argmap[arg] = args[i]
-	}
-
-	for k, v := range argmap {
-		log.Infof("argmap: %s => %s", k, v)
-		for t, m := range task.Metadata {
-			log.Infof("meta: %s => %s", t, m)
-			v = strings.Replace(v, "$"+t, m, -1)
-		}
-		argmap[k] = v
-	}
-
-	c := fn.Command
-	for k, v := range argmap {
-		log.Infof("ARG: %s => %s", k, v)
-		c = strings.Replace(c, k, v, -1)
-	}
-
-	var funcEnvironment map[string]string
-	if ws.InheritEnvironment {
-		funcEnvironment = ws.Environment
-	} else if global.InheritEnvironment {
-		funcEnvironment = global.Environment
-	} else {
-		funcEnvironment = make(map[string]string)
-	}
-
-	tsk := NewTask("Function$"+name, fn.Executor, c, funcEnvironment, false, "", "", make(map[string]string), "")
-	ch := tsk.Start(ws.sync)
-	<-ch
-	return tsk.TaskRuns[0].StdoutBuf.String()
-}
-
-// ActiveTasks returns the number of active tasks in a workspace
-func (ws *Workspace) ActiveTasks() int {
-	a := 0
-	for _, t := range ws.Tasks {
-		if t.ActiveTask != nil {
-			a++
-		}
-	}
-	return a
-}
-
-// InactiveTasks returns the number of inactive tasks in a workspace
-func (ws *Workspace) InactiveTasks() int {
-	return ws.TotalTasks() - ws.ActiveTasks()
-}
-
-// TotalTasks returns the total number of tasks in a workspace
-func (ws *Workspace) TotalTasks() int {
-	return len(ws.Tasks)
-}
-
-// PercentActive returns the percentage of tasks active in a workspace
-func (ws *Workspace) PercentActive() int {
-	return int(float64(ws.ActiveTasks()) / float64(ws.TotalTasks()) * float64(100))
-}
-
-// PercentInactive returns the percentage of tasks inactive in a workspace
-func (ws *Workspace) PercentInactive() int {
-	return 100 - ws.PercentActive()
-}
-
 // NewWorkspace returns a new workspace
 func NewWorkspace(sync chan bool, name string, environment map[string]string, columns map[string]map[string][]string, inheritEnv bool) *Workspace {
 	if environment == nil {
@@ -157,42 +65,7 @@ func NewWorkspace(sync chan bool, name string, environment map[string]string, co
 	return ws
 }
 
-func configureGlobalWorkSpace(sync chan bool, workspace *ConfigWorkspace) *Workspace {
-	globalWorkspace := NewWorkspace(sync,
-		workspace.Name,
-		workspace.Environment,
-		make(map[string]map[string][]string),
-		workspace.InheritEnvironment)
-
-	for fn, args := range workspace.Functions {
-		globalWorkspace.Functions[fn] = &Function{
-			Name:     fn,
-			Args:     args.Args,
-			Command:  args.Command,
-			Executor: args.Executor,
-		}
-	}
-
-	if globalWorkspace.InheritEnvironment {
-		log.Info("=> Inheriting process environment into global workspace")
-		for _, k := range os.Environ() {
-			p := strings.SplitN(k, "=", 2)
-			if strings.TrimSpace(p[0]) == "" {
-				log.Warn("Skipping empty environment key")
-				continue
-			}
-			log.Infof("  %s = %s", p[0], p[1])
-			// TODO variable subst for current env vars
-			if _, ok := globalWorkspace.Environment[p[0]]; !ok {
-				globalWorkspace.Environment[p[0]] = p[1]
-			}
-		}
-	}
-
-	return globalWorkspace
-}
-
-func configureWorkSpaces(syncChan chan bool, globalWorkspace *Workspace, configWorkspaces map[string]*ConfigWorkspace) map[string]*Workspace {
+func configureWorkSpaces(syncChan chan bool, configWorkspaces map[string]*ConfigWorkspace) map[string]*Workspace {
 	workspaces := make(map[string]*Workspace)
 
 	for _, ws := range configWorkspaces {
@@ -207,7 +80,7 @@ func configureWorkSpaces(syncChan chan bool, globalWorkspace *Workspace, configW
 			workspaces[ws.Name] = workspace
 		}
 
-		if workspace.InheritEnvironment && !globalWorkspace.InheritEnvironment {
+		if workspace.InheritEnvironment {
 			log.Info("=> Inheriting process environment into workspace")
 			for _, k := range os.Environ() {
 				p := strings.SplitN(k, "=", 2)
@@ -241,9 +114,6 @@ func configureWorkSpaces(syncChan chan bool, globalWorkspace *Workspace, configW
 			}
 
 			env := make(map[string]string)
-			for k, v := range globalWorkspace.Environment {
-				env[k] = v
-			}
 			for k, v := range ws.Environment {
 				env[k] = v
 			}
@@ -252,7 +122,7 @@ func configureWorkSpaces(syncChan chan bool, globalWorkspace *Workspace, configW
 			}
 
 			task := NewTask(t.Name, t.Executor, t.Command, env, t.Service, t.Stdout,
-				t.Stderr, t.Metadata, t.Pwd)
+				t.Stderr, t.KillSignal, t.Pwd)
 			if task.Service {
 				task.Start(syncChan)
 			}

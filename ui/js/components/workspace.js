@@ -75,7 +75,7 @@ const TaskListTile = {
                 payload: {
                   workspace: workspace.name,
                   task: task.name,
-                  service: task.service
+                  service: task.status === 'Running' && task.service ? false : task.service
                 }
               })
             }

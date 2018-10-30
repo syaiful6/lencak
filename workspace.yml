@@ -1,15 +1,10 @@
 name: lencak
 environment:
   WORKSPACE: lencak
-columns:
-  diskusage:
-    diskusage: ["$PATH"]
 tasks:
   - name: sleep
     command: sleep 60
     service: on
-    metadata:
-      PATH: "/bin"
   - name: echo
     command: echo This is a test $PORT
     environment:
@@ -17,10 +12,10 @@ tasks:
     metadata:
       PATH: "/bin"
   - name: docker
-    pwd: /d/python-projects/mellon
+    pwd: /home/syaiful/code/projects/thatiq
     command: docker-compose up
+    killsignal: sigterm
     environment:
       PATH: "/bin:/usr/bin/"
-      DOCKER_HOST: "tcp://0.0.0.0:2375"
     metadata:
       PATH: "/bin:/usr/bin/"

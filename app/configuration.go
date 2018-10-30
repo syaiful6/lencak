@@ -5,6 +5,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
@@ -32,6 +33,7 @@ type ConfigTask struct {
 	ID          int               `yaml:"id,omitempty"`
 	Name        string            `yaml:"name"`
 	Command     string            `yaml:"command"`
+	KillSignal  KillSignal        `yaml:"killsignal"`
 	Environment map[string]string `yaml:"environment,omitempty"`
 	Service     bool              `yaml:"service,omitempty"`
 	Executor    []string          `yaml:"executor,omitempty"`
@@ -41,10 +43,30 @@ type ConfigTask struct {
 	Pwd         string            `yaml:"pwd,omitempty"`
 }
 
+type KillSignal string
+
 // the loaded Workspaces configuration
-type ConfigWorkspaces struct {
-	Global     *ConfigWorkspace
-	Workspaces map[string]*ConfigWorkspace
+type ConfigWorkspaces map[string]*ConfigWorkspace
+
+// UnmarshalYAML implements the yaml.Umarshaler interface
+// Unmarshals a string into a Loglevel, lowercasing the string and validating that it represents a
+// valid loglevel
+func (killsignal *KillSignal) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var killsignalString string
+	err := unmarshal(&killsignalString)
+	if err != nil {
+		return err
+	}
+
+	killsignalString = strings.ToLower(killsignalString)
+	switch killsignalString {
+	case "sigint", "sigterm", "sigkill":
+	default:
+		return fmt.Errorf("Invalid killsignal %s Must be one of [sigint, sigterm, sigkill]", killsignalString)
+	}
+
+	*killsignal = KillSignal(killsignalString)
+	return nil
 }
 
 // parse config
@@ -79,14 +101,7 @@ func ParseFile(path string) (*ConfigWorkspace, error) {
 	return config, nil
 }
 
-func LoadConfig(global string, workspaces []string) (*ConfigWorkspaces, error) {
-	log.Infof("Loading global environment file: %s", global)
-
-	gcfg, err := ParseFile(global)
-	if err != nil {
-		return nil, fmt.Errorf("error parsing %s: %v", global, err)
-	}
-
+func LoadConfig(workspaces []string) (map[string]*ConfigWorkspace, error) {
 	var configWorkspaces = make(map[string]*ConfigWorkspace)
 	// Load workspaces
 	for _, conf := range workspaces {
@@ -100,8 +115,5 @@ func LoadConfig(global string, workspaces []string) (*ConfigWorkspaces, error) {
 		}
 	}
 
-	return &ConfigWorkspaces{
-		Global:     gcfg,
-		Workspaces: configWorkspaces,
-	}, nil
+	return configWorkspaces, nil
 }

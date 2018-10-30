@@ -1,7 +1,7 @@
 function getWebsocketURL() {
-  var host = location.hostname;
+  var host = location.host;
   var wsp = location.protocol === 'https' ? 'wss' : 'ws';
-  return `${wsp}://${host}:9056/ws`;
+  return `${wsp}://${host}/ws`;
 }
 
 export function createWebsocket(handler) {

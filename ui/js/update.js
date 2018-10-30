@@ -25,7 +25,6 @@ const socket = createWebsocket(handler);
 
 function update(model, msg) {
   let data;
-  console.log(model, msg);
   switch (msg.type) {
     case START_TASK:
       socket.send(JSON.stringify({

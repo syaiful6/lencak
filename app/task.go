@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -22,9 +23,11 @@ type Task struct {
 	Metadata    map[string]string
 	Pwd         string
 
+	activeMu sync.Mutex
 	ActiveTask *TaskRun
 	TaskRuns   []*TaskRun
 
+	serviceMu sync.Mutex
 	Service bool
 }
 
@@ -41,8 +44,6 @@ func (t *Task) MarshalJSON() ([]byte, error) {
 		Pwd         string            `json:"pwd"`
 		Service     bool              `json:"service"`
 		Status      string            `json:"status"`
-		ActiveTask  *TaskRun          `json:"activetask,omitempty"`
-		TaskRuns    []*TaskRun        `json:"taskruns"`
 	}{
 		ID:          t.ID,
 		Name:        t.Name,
@@ -55,8 +56,6 @@ func (t *Task) MarshalJSON() ([]byte, error) {
 		Pwd:         t.Pwd,
 		Service:     t.Service,
 		Status:      t.Status(),
-		ActiveTask:  t.ActiveTask,
-		TaskRuns:    t.TaskRuns,
 	})
 }
 
@@ -89,7 +88,9 @@ func NewTask(name string, executor []string, command string, environment map[str
 func (t *Task) Start(sync chan string) chan int {
 	c1 := make(chan int, 1)
 	if t.ActiveTask == nil {
+		t.activeMu.Lock()
 		t.ActiveTask = t.NewTaskRun()
+		t.activeMu.Unlock()
 		c := make(chan int)
 		select {
 		case sync <- fmt.Sprintf("task %s started", t.Name):
@@ -109,8 +110,15 @@ func (t *Task) Start(sync chan string) chan int {
 			default:
 				log.Infof("failed sending event task stopped for %s", t.Name)
 			}
+			t.activeMu.Lock()
 			t.ActiveTask = nil
-			if t.Service {
+			t.activeMu.Unlock()
+
+			t.serviceMu.Lock()
+			service := t.Service
+			t.serviceMu.Unlock()
+
+			if service {
 				time.Sleep(time.Second * 1)
 				t.Start(sync)
 				return
@@ -122,6 +130,8 @@ func (t *Task) Start(sync chan string) chan int {
 
 // Stop stops a task
 func (t *Task) Stop() {
+	t.activeMu.Lock()
+	defer t.activeMu.Unlock()
 	if t.ActiveTask != nil {
 		t.ActiveTask.Stop()
 		t.ActiveTask = nil
@@ -174,7 +184,9 @@ func (t *Task) NewTaskRun() *TaskRun {
 
 // Status returns a string representation of the current task status
 func (t *Task) Status() string {
-	if t.ActiveTask != nil && t.ActiveTask.Cmd != nil && t.ActiveTask.Cmd.Process != nil && t.ActiveTask.Cmd.Process.Pid > 0 {
+	t.activeMu.Lock()
+	defer t.activeMu.Unlock()
+	if t.ActiveTask != nil {
 		return "Running"
 	}
 	return "Stopped"

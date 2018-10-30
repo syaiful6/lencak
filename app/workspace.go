@@ -35,10 +35,6 @@ func (ws *Workspace) MarshalJSON() ([]byte, error) {
 		Functions          map[string]*Function           `json:"function,omitempty"`
 		Columns            map[string]map[string][]string `json:"columns,omitempty"`
 		InheritEnvironment bool                           `json:"inherit_environment"`
-		ActiveTask         int                            `json:"active_tasks"`
-		InactiveTasks      int                            `json:"inactive_tasks"`
-		TotalTasks         int                            `json:"total_tasks"`
-		PercentActive      int                            `json:"percentative_task"`
 	}{
 		Name:               ws.Name,
 		Environment:        ws.Environment,
@@ -46,10 +42,6 @@ func (ws *Workspace) MarshalJSON() ([]byte, error) {
 		IsLocked:           ws.IsLocked,
 		Functions:          ws.Functions,
 		InheritEnvironment: ws.InheritEnvironment,
-		ActiveTask:         ws.ActiveTasks(),
-		InactiveTasks:      ws.InactiveTasks(),
-		TotalTasks:         ws.TotalTasks(),
-		PercentActive:      ws.PercentActive(),
 	})
 }
 

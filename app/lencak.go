@@ -32,7 +32,9 @@ func NewLencak(config *ConfigWorkspaces) *Lencak {
 func (lenc *Lencak) StartTask(workSpaceName, taskName string, asService bool) bool {
 	return lenc.WithWorkspaceTask(workSpaceName, taskName, func(task *Task) {
 		if asService {
+			task.serviceMu.Lock()
 			task.Service = true
+			task.serviceMu.Unlock()
 			if task.ActiveTask == nil {
 				task.Start(lenc.sync)
 			}
@@ -45,6 +47,8 @@ func (lenc *Lencak) StartTask(workSpaceName, taskName string, asService bool) bo
 // Stop task
 func (lenc *Lencak) StopTask(workSpaceName, taskName string, disableService bool) bool {
 	return lenc.WithWorkspaceTask(workSpaceName, taskName, func(task *Task) {
+		task.serviceMu.Lock()
+		defer task.serviceMu.Unlock()
 		if task.Service && disableService {
 			task.Service = false
 			log.Infof("disabling service %s in workspace %s", taskName, workSpaceName)

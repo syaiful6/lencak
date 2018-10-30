@@ -1,8 +1,14 @@
-build: bindata
+build: build-ui bindata
 	go build
 
 start: build
 	./lencak
+
+build-ui:
+	mkdir -p ui/dist/js \
+		&& npm run build \
+		&& mkdir -p assets/js && \
+		cp ui/dist/js/index.js assets/js/ui.js
 
 bindata: bindata-deps
 	-rm assets/assets.go

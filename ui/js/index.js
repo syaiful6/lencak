@@ -69,36 +69,38 @@ const App = {
 
 addToDocument(PageCss, {id: 'thatique-css-page'})
 
-m.route(document.body, '/workspaces', {
-  '/workspaces': {
-    render() {
-      const models = updater.model();
-      return m(App, {
-        title: 'Workspaces',
-        content: m('.workspaces', Object.keys(models.workspaces).map(key =>
-          m(Workspace, {workspace: models.workspaces[key], sender: updater.send})
-        ))
-      })
-    }
-  },
-  '/workspaces/:workspaceid': {
-    render() {
-      const workspaceid = m.route.param('workspaceid');
-      const models = updater.model();
-      const workspace = models[workspaceid];
-
-      if (workspace) {
+requestAnimationFrame(() => {
+  m.route(document.body, '/workspaces', {
+    '/workspaces': {
+      render() {
+        const models = updater.model();
         return m(App, {
-          title: workspace.name,
-          content: m('.workspace', [
-            m(Workspace, {workspace, sender: updater.send })
-        ])})
-      } else {
-        return m(App, {
-          title: 'NotFound',
-          content: `workspace ${workspaceid} not found`
+          title: 'Workspaces',
+          content: m('.workspaces', Object.keys(models.workspaces).map(key =>
+            m(Workspace, {workspace: models.workspaces[key], sender: updater.send})
+          ))
         })
       }
+    },
+    '/workspaces/:workspaceid': {
+      render() {
+        const workspaceid = m.route.param('workspaceid');
+        const models = updater.model();
+        const workspace = models[workspaceid];
+
+        if (workspace) {
+          return m(App, {
+            title: workspace.name,
+            content: m('.workspace', [
+              m(Workspace, {workspace, sender: updater.send })
+          ])})
+        } else {
+          return m(App, {
+            title: 'NotFound',
+            content: `workspace ${workspaceid} not found`
+          })
+        }
+      }
     }
-  }
-})
+  })
+});

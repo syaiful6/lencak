@@ -67,7 +67,7 @@ func NewApp(config *ConfigWorkspaces, asset func(string) ([]byte, error)) *App {
 	}
 
 	router.Path("/").Methods("GET").HandlerFunc(app.indexHandler())
-	router.Path("/css/{file:.*}").Methods("GET").HandlerFunc(app.Static("assets/css/{{file}}"))
+	router.Path("/js/{file:.*}").Methods("GET").HandlerFunc(app.Static("assets/js/{{file}}"))
 	router.Path("/ws").HandlerFunc(app.lencakWebsocket())
 
 	// api
@@ -206,7 +206,10 @@ func (app *App) lencakWebsocket() http.HandlerFunc {
 
 func (app *App) Static(pattern string) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, req *http.Request) {
-		fp := strings.TrimSuffix(pattern, "{{file}}") + req.URL.Query().Get(":file")
+		vars := mux.Vars(req)
+		fi := vars["file"]
+		fp := strings.TrimSuffix(pattern, "{{file}}") + fi
+
 		if b, err := app.asset(fp); err == nil {
 			ext := filepath.Ext(fp)
 
@@ -246,7 +249,6 @@ func (app *App) ListenAndServe(addr string) error {
 				}
 			}
 		}
-		close(app.lencak.sync)
 	}()
 
 	select {

@@ -1,8 +1,8 @@
 build: build-ui bindata
 	go build
 
-start: build
-	./lencak
+start-dev: build-ui bindata
+	go run -race main.go
 
 build-ui:
 	mkdir -p ui/dist/js \

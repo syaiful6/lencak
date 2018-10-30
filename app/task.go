@@ -2,7 +2,6 @@ package app
 
 import (
 	"encoding/json"
-	"fmt"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -85,7 +84,7 @@ func NewTask(name string, executor []string, command string, environment map[str
 	return task
 }
 
-func (t *Task) Start(sync chan string) chan int {
+func (t *Task) Start(sync chan bool) chan int {
 	c1 := make(chan int, 1)
 	if t.ActiveTask == nil {
 		t.activeMu.Lock()
@@ -93,7 +92,7 @@ func (t *Task) Start(sync chan string) chan int {
 		t.activeMu.Unlock()
 		c := make(chan int)
 		select {
-		case sync <- fmt.Sprintf("task %s started", t.Name):
+		case sync <- true:
 			log.Infof("success sending event task started for %s", t.Name)
 		default:
 			log.Infof("failed sending event task started for %s", t.Name)
@@ -105,7 +104,7 @@ func (t *Task) Start(sync chan string) chan int {
 			ex := <-c
 			c1 <- ex
 			select {
-			case sync <- fmt.Sprintf("task %s stopped", t.Name):
+			case sync <- true:
 				log.Infof("success sending event task stopped for %s", t.Name)
 			default:
 				log.Infof("failed sending event task stopped for %s", t.Name)

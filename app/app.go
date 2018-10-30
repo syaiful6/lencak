@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
-	"fmt"
 	"html/template"
 	"mime"
 	"net"
@@ -70,32 +68,7 @@ func NewApp(config *ConfigWorkspaces, asset func(string) ([]byte, error)) *App {
 	router.Path("/js/{file:.*}").Methods("GET").HandlerFunc(app.Static("assets/js/{{file}}"))
 	router.Path("/ws").HandlerFunc(app.lencakWebsocket())
 
-	// api
-	apiRouter := router.PathPrefix("/api").Subrouter()
-	apiRouter.Use(apiHeaderMiddleware)
-	apiRouter.Path("/").Methods("GET").HandlerFunc(app.apiIndexHandler())
-	apiRouter.Path("/workspaces").Methods("GET").HandlerFunc(app.listWorkspacesHandler())
-	apiRouter.Path("/workspaces/{workspace}").Methods("GET").HandlerFunc(app.listTaskHandler())
-	apiRouter.Path("/workspaces/{workspace}/task/{task}/start").
-		Methods("POST").
-		HandlerFunc(app.startTaskHandler())
-	apiRouter.Path("/workspaces/{workspace}/task/{task}/stop").
-		Methods("POST").
-		HandlerFunc(app.stopTaskHandler())
-	apiRouter.Path("/workspaces/{workspace}/task/{task}").
-		Methods("GET").
-		HandlerFunc(app.taskHistoryHandler())
-
 	return app
-}
-
-func countTask(workspaces map[string]*ConfigWorkspace) int {
-	count := 0
-	for _, workspace := range workspaces {
-		count += len(workspace.Tasks)
-	}
-
-	return count
 }
 
 func upgradeCheckOrigin(r *http.Request) bool {
@@ -134,9 +107,7 @@ func (app *App) lencakWebsocket() http.HandlerFunc {
 
 		go func() {
 			// write our workspace when they connected
-			app.lencak.Lock()
 			msg, err := json.Marshal(app.lencak.workspaces)
-			app.lencak.Unlock()
 			if err != nil {
 				log.Errorf("websocket error marshalling workspace %s", err.Error())
 				return
@@ -149,9 +120,7 @@ func (app *App) lencakWebsocket() http.HandlerFunc {
 			for {
 				select {
 				case <-app.lencak.sync:
-					app.lencak.Lock()
 					msg, err := json.Marshal(app.lencak.workspaces)
-					app.lencak.Unlock()
 					if err != nil {
 						log.Errorf("websocket error marshalling workspace %s", err.Error())
 						return
@@ -244,9 +213,11 @@ func (app *App) ListenAndServe(addr string) error {
 		log.Info("Clean up tasks processes")
 		for _, ws := range app.lencak.workspaces {
 			for _, t := range ws.Tasks {
+				t.activeMu.Lock()
 				if t.ActiveTask != nil && t.ActiveTask.Cmd != nil && t.ActiveTask.Cmd.Process != nil {
 					t.ActiveTask.Cmd.Process.Kill()
 				}
+				t.activeMu.Unlock()
 			}
 		}
 	}()
@@ -261,16 +232,6 @@ func (app *App) ListenAndServe(addr string) error {
 		defer cancel()
 		return app.server.Shutdown(c)
 	}
-}
-
-func apiHeaderMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		w.Header().Set("Cache-Control", "no-store, must-revalidate")
-		w.Header().Set("Pragma", "no-cache")
-		w.Header().Set("Expires", "0")
-		next.ServeHTTP(w, r)
-	})
 }
 
 func (app *App) indexHandler() func(http.ResponseWriter, *http.Request) {
@@ -308,145 +269,4 @@ func (app *App) indexHandler() func(http.ResponseWriter, *http.Request) {
 		w.WriteHeader(200)
 		w.Write(b.Bytes())
 	}
-}
-
-func (app *App) apiIndexHandler() http.HandlerFunc {
-	return func(w http.ResponseWriter, req *http.Request) {
-		enc := json.NewEncoder(w)
-		info := &struct {
-			Name    string `json:"name"`
-			Version string `json:"string"`
-		}{
-			Name:    "Lencak",
-			Version: "v0.0.1",
-		}
-		if err := enc.Encode(info); err != nil {
-			renderError(w, 500, err)
-		}
-	}
-}
-
-func (app *App) listWorkspacesHandler() http.HandlerFunc {
-	return func(w http.ResponseWriter, req *http.Request) {
-
-		workspaces, err := json.Marshal(app.lencak.workspaces)
-		if err != nil {
-			log.Printf("error marshaling workspace: %s", err)
-			renderError(w, 500, err)
-			return
-		}
-
-		w.WriteHeader(200)
-		w.Write(workspaces)
-	}
-}
-
-func (app *App) listTaskHandler() http.HandlerFunc {
-	return func(w http.ResponseWriter, req *http.Request) {
-		var err error
-		vars := mux.Vars(req)
-		id := vars["workspace"]
-		enc := json.NewEncoder(w)
-		if workspace, ok := app.lencak.workspaces[id]; ok {
-			if err = enc.Encode(&struct {
-				Tasks map[string]*Task `json:"tasks"`
-			}{
-				Tasks: workspace.Tasks,
-			}); err != nil {
-				renderError(w, 500, err)
-				return
-			}
-			return
-		}
-
-		renderError(w, 404, errors.New(fmt.Sprintf("Workspace %s didn't exists", id)))
-	}
-}
-
-func (app *App) taskHistoryHandler() http.HandlerFunc {
-	return func(w http.ResponseWriter, req *http.Request) {
-		var err error
-		vars := mux.Vars(req)
-		enc := json.NewEncoder(w)
-		id, tid := vars["workspace"], vars["task"]
-		if workspace, ok := app.lencak.workspaces[id]; ok {
-			if task, ok := app.lencak.workspaces[id].Tasks[tid]; ok {
-				if err = enc.Encode(&struct {
-					Workspace *Workspace `json:"workspace"`
-					Task      *Task      `json:"task"`
-				}{
-					Workspace: &Workspace{
-						Name:               workspace.Name,
-						Environment:        workspace.Environment,
-						Functions:          workspace.Functions,
-						IsLocked:           workspace.IsLocked,
-						Columns:            workspace.Columns,
-						InheritEnvironment: workspace.InheritEnvironment,
-					},
-					Task: task,
-				}); err != nil {
-					renderError(w, 500, err)
-					return
-				}
-				return
-			}
-
-			renderError(w, 404, errors.New(fmt.Sprintf("Workspace %s didn't have task %s", id, tid)))
-			return
-		}
-
-		renderError(w, 404, errors.New(fmt.Sprintf("Workspace %s didn't exists", id)))
-	}
-}
-
-func (app *App) startTaskHandler() http.HandlerFunc {
-	return func(w http.ResponseWriter, req *http.Request) {
-		defer req.Body.Close()
-
-		vars := mux.Vars(req)
-		id, tid := vars["workspace"], vars["task"]
-		service := req.FormValue("service")
-
-		ok := app.lencak.StartTask(id, tid, service == "on")
-		if ok {
-			fmt.Fprint(w, `{"ok": true}`)
-			return
-		}
-
-		renderError(w, 404, errors.New(fmt.Sprintf("Workspace %s or task %s didn't exists", id, tid)))
-	}
-}
-
-func (app *App) stopTaskHandler() http.HandlerFunc {
-	return func(w http.ResponseWriter, req *http.Request) {
-		defer req.Body.Close()
-
-		vars := mux.Vars(req)
-		id, tid := vars["workspace"], vars["task"]
-		service := req.FormValue("service")
-
-		ok := app.lencak.StopTask(id, tid, service == "off")
-		if ok {
-			fmt.Fprint(w, `{"ok": true}`)
-			return
-		}
-
-		renderError(w, 404, errors.New(fmt.Sprintf("Workspace %s or task %s didn't exists", id, tid)))
-	}
-}
-
-func renderError(w http.ResponseWriter, code int, err error) {
-	w.WriteHeader(code)
-	errorJson, marshalErr := json.Marshal(&struct {
-		Ok  bool   `json:"ok"`
-		Err string `json:"error"`
-	}{
-		Ok:  false,
-		Err: err.Error(),
-	})
-	if marshalErr != nil {
-		fmt.Fprint(w, `{"ok": false, "err": "unknown"}`)
-		return
-	}
-	w.Write(errorJson)
 }

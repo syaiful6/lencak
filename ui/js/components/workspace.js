@@ -56,7 +56,7 @@ const TaskListTile = {
                 payload: {
                   workspace: workspace.name,
                   task: task.name,
-                  service: task.service,
+                  service: true,
                 }
               })
             }
@@ -71,7 +71,7 @@ const TaskListTile = {
           events: {
             onclick: () => {
               sender({
-                type: task.service ? STOP_TASK : START_TASK,
+                type: task.status === 'Running' ? STOP_TASK : START_TASK,
                 payload: {
                   workspace: workspace.name,
                   task: task.name,

@@ -16,7 +16,7 @@ type Workspace struct {
 	Functions          map[string]*Function
 	Columns            map[string]map[string][]string
 	InheritEnvironment bool
-	sync               chan string
+	sync               chan bool
 }
 
 type Function struct {
@@ -138,7 +138,7 @@ func (ws *Workspace) PercentInactive() int {
 }
 
 // NewWorkspace returns a new workspace
-func NewWorkspace(sync chan string, name string, environment map[string]string, columns map[string]map[string][]string, inheritEnv bool) *Workspace {
+func NewWorkspace(sync chan bool, name string, environment map[string]string, columns map[string]map[string][]string, inheritEnv bool) *Workspace {
 	if environment == nil {
 		environment = make(map[string]string)
 	}
@@ -157,7 +157,7 @@ func NewWorkspace(sync chan string, name string, environment map[string]string, 
 	return ws
 }
 
-func configureGlobalWorkSpace(sync chan string, workspace *ConfigWorkspace) *Workspace {
+func configureGlobalWorkSpace(sync chan bool, workspace *ConfigWorkspace) *Workspace {
 	globalWorkspace := NewWorkspace(sync,
 		workspace.Name,
 		workspace.Environment,
@@ -192,7 +192,7 @@ func configureGlobalWorkSpace(sync chan string, workspace *ConfigWorkspace) *Wor
 	return globalWorkspace
 }
 
-func configureWorkSpaces(syncChan chan string, globalWorkspace *Workspace, configWorkspaces map[string]*ConfigWorkspace) map[string]*Workspace {
+func configureWorkSpaces(syncChan chan bool, globalWorkspace *Workspace, configWorkspaces map[string]*ConfigWorkspace) map[string]*Workspace {
 	workspaces := make(map[string]*Workspace)
 
 	for _, ws := range configWorkspaces {

@@ -1,10 +1,10 @@
 import m from 'mithril';
 import stream from 'mithril/stream'
 
-import {createWebsocket} from './service/websocket';
+import {ReconnWebsocket, getWebsocketURL} from './service/websocket';
 import {
   START_TASK, STOP_TASK, CONNECTED, DISCONNECTED, WORKSPACE_REPLACE,
-  SOCK_DISCONNECT, SOCK_CONNECTED
+  SOCK_DISCONNECT, SOCK_CONNECTED, REFRESH_CONN
 } from './constant'
 
 export const send = stream();
@@ -16,15 +16,24 @@ export const model = stream.scan(
 
 model.map(() => m.redraw())
 
-const handler = {
-  onopen: () => send({type: CONNECTED }),
-  onclose: () => send({type: DISCONNECTED }),
-  onmessage: (ev) => send({ type: WORKSPACE_REPLACE, payload: { data: ev.data }}),
-};
-const socket = createWebsocket(handler);
+const socket = new ReconnWebsocket(getWebsocketURL())
+
+socket.onopen = () => send({type: CONNECTED });
+socket.onclose = () => send({type: DISCONNECTED });
+socket.onmessage = (ev) => send({ type: WORKSPACE_REPLACE, payload: { data: ev.data }});
+
+function updateTaskWith(workspaces, workspaceid, taskid, f) {
+  return Object.assign({}, workspaces, {
+    [workspaceid]: Object.assign({}, workspaces[workspaceid], {
+      tasks: Object.assign({}, workspaces[workspaceid].tasks, {
+        [taskid]: Object.assign({}, workspaces[workspaceid].tasks[taskid], f(workspaces[workspaceid].tasks[taskid]))
+      })
+    })
+  })
+}
 
 function update(model, msg) {
-  let data;
+  let data, task;
   console.log(msg)
   switch (msg.type) {
     case START_TASK:
@@ -34,11 +43,11 @@ function update(model, msg) {
         service: typeof msg.payload.service !== 'boolean' ? false : msg.payload.service,
         command: 'start'
       }));
+
       return Object.assign({}, model, {
-        [msg.payload.workspace]: Object.assign({}, model[msg.payload.workspace], {
-          status: 'Running'
-        })
-      });
+        workspaces: updateTaskWith(model.workspaces, msg.payload.workspace,
+          msg.payload.task, () => ({status: 'Running'}))
+      })
 
     case STOP_TASK:
       socket.send(JSON.stringify({
@@ -47,11 +56,10 @@ function update(model, msg) {
         service: typeof msg.payload.service !== 'boolean' ? false : msg.payload.service,
         command: 'stop'
       }));
-      return Object.assign({}, model, {
-        [msg.payload.workspace]: Object.assign({}, model[msg.payload.workspace], {
-          status: 'Stopped'
-        })
-      });
+     return Object.assign({}, model, {
+        workspaces: updateTaskWith(model.workspaces, msg.payload.workspace,
+          msg.payload.task, () => ({status: 'Stopped'}))
+      })
 
     case CONNECTED:
       return Object.assign({}, model, {
@@ -70,6 +78,10 @@ function update(model, msg) {
           workspaces: data
         });
       }
+      return model;
+
+    case REFRESH_CONN:
+      socket.refresh();
       return model;
 
     default:

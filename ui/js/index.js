@@ -8,6 +8,7 @@ import PageCss from './css/page'
 import { addToDocument } from './css/utils'
 import Workspace from './components/workspace'
 import NavigationList from "./components/navigation-list"
+import {REFRESH_CONN} from './constant'
 import * as updater from './update';
 
 
@@ -39,9 +40,12 @@ const App = {
             }
           }),
           m(ToolbarTitle, { text: `Lencak: ${attrs.title}` }),
-          m(IconButton,
-            { icon: { svg: m.trust(iconRefreshSVG) } }
-          ),
+          m(IconButton, {
+            icon: { svg: m.trust(iconRefreshSVG) },
+            events: {
+              onclick: () => updater.send({type: REFRESH_CONN})
+            }
+          }),
         ])
       ]),
       m(Dialog),
@@ -86,7 +90,7 @@ requestAnimationFrame(() => {
       render() {
         const workspaceid = m.route.param('workspaceid');
         const models = updater.model();
-        const workspace = models[workspaceid];
+        const workspace = models.workspaces[workspaceid];
 
         if (workspace) {
           return m(App, {

@@ -228,7 +228,7 @@ func (app *App) ListenAndServe(addr string) error {
 
 	case <-quit:
 		log.Info("shutdown server")
-		c, cancel := context.WithTimeout(context.Background(), time.Second*30)
+		c, cancel := context.WithTimeout(context.Background(), time.Second*20)
 		defer cancel()
 		return app.server.Shutdown(c)
 	}

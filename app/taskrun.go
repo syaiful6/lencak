@@ -180,7 +180,7 @@ func (tr *TaskRun) Stop(kill KillSignal) {
 	case "sigint":
 		tr.Cmd.Process.Signal(syscall.SIGINT)
 	case "sigterm":
-		tr.Cmd.Process.Signal(syscall.SIGINT)
+		tr.Cmd.Process.Signal(syscall.SIGTERM)
 	default:
 		tr.Cmd.Process.Kill()
 	}

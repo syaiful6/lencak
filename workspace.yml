@@ -9,13 +9,21 @@ tasks:
     command: echo This is a test $PORT
     environment:
       PORT: "9032"
-    metadata:
-      PATH: "/bin"
+  - name: ui
+    command: npm run dev
+    killsignal: sigterm
+    environment:
+      PATH: '/home/syaiful/.nvm/versions/node/v8.12.0/bin:/bin:/usr/bin:'
   - name: docker
     pwd: /home/syaiful/code/projects/thatiq
     command: docker-compose up
     killsignal: sigterm
     environment:
       PATH: "/bin:/usr/bin/"
-    metadata:
-      PATH: "/bin:/usr/bin/"
+  - name: mellon-intranet
+    pwd: /d/python-projects/mellon-intranet
+    command: docker-compose up
+    killsignal: sigterm
+    environment:
+      PATH: "/bin:/usr/bin/:/usr/local/bin/"
+      DOCKER_HOST: "tcp://0.0.0.0:2375"

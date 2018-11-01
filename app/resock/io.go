@@ -2,13 +2,28 @@ package resock
 
 import (
 	"errors"
+	"io"
 )
 
-type ChannelWriter struct {
-	writeChan chan []byte
+type ReaderChanCloser struct {
+	exit chan bool
+	reader io.Reader
 }
 
-func NewWriteChan(c chan []byte) {
+func (r *ReaderChanCloser) Read(p []byte) (n int, err error) {
+	return r.reader.Read(p)
+}
+
+func (r *ReaderChanCloser) Close() error {
+	r.exit <- true
+	return nil
+}
+
+type ChannelWriter struct {
+	writeChan chan<- []byte
+}
+
+func NewWriteChan(c chan []byte) *ChannelWriter {
 	return &ChannelWriter{
 		writeChan: c,
 	}

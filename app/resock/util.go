@@ -1,11 +1,11 @@
-package app
+package resock
 
 import (
 	"unicode/utf8"
 )
 
 // equalASCIIFold returns true if s is equal to t with ASCII case folding.
-func equalASCIIFold(s, t string) bool {
+func EqualASCIIFold(s, t string) bool {
 	for s != "" && t != "" {
 		sr, size := utf8.DecodeRuneInString(s)
 		s = s[size:]

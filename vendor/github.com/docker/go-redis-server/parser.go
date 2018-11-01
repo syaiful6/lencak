@@ -1,4 +1,4 @@
-package resock
+package redis
 
 import (
 	"bufio"
@@ -6,12 +6,9 @@ import (
 	"io"
 	"io/ioutil"
 	"strings"
-
-	redis "github.com/docker/go-redis-server"
 )
 
-
-func ParseRequest(conn io.ReadCloser) (*redis.Request, error) {
+func parseRequest(conn io.ReadCloser) (*Request, error) {
 	r := bufio.NewReader(conn)
 	// first line of redis request should be:
 	// *<number of arguments>CRLF
@@ -43,7 +40,7 @@ func ParseRequest(conn io.ReadCloser) (*redis.Request, error) {
 			}
 		}
 
-		return &redis.Request{
+		return &Request{
 			Name: strings.ToLower(string(firstArg)),
 			Args: args,
 			Body: conn,
@@ -59,7 +56,7 @@ func ParseRequest(conn io.ReadCloser) (*redis.Request, error) {
 			args = append(args, []byte(arg))
 		}
 	}
-	return &redis.Request{
+	return &Request{
 		Name: strings.ToLower(string(fields[0])),
 		Args: args,
 		Body: conn,

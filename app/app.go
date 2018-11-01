@@ -8,7 +8,6 @@ import (
 	"mime"
 	"net"
 	"net/http"
-	"net/url"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -17,8 +16,8 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
+	"github.com/syaiful6/lencak/app/resock"
 )
 
 const (
@@ -48,8 +47,12 @@ type WSMessage struct {
 	Command string `json:"command"` // only start/stop supported
 }
 
-func NewApp(config map[string]*ConfigWorkspace, asset func(string) ([]byte, error)) *App {
+func NewApp(config map[string]*ConfigWorkspace, asset func(string) ([]byte, error)) (*App, error) {
 	lencak := NewLencak(config)
+	ws, err := resock.NewServer(lencak)
+	if err != nil {
+		return nil, err
+	}
 
 	router := mux.NewRouter()
 	router.StrictSlash(true)
@@ -66,130 +69,11 @@ func NewApp(config map[string]*ConfigWorkspace, asset func(string) ([]byte, erro
 
 	router.Path("/").Methods("GET").HandlerFunc(app.indexHandler())
 	router.Path("/js/{file:.*}").Methods("GET").HandlerFunc(app.Static("assets/js/{{file}}"))
-	router.Path("/ws").HandlerFunc(app.lencakWebsocket())
+	router.Path("/ws").HandlerFunc(ws.Serve)
 
-	return app
-}
+	go ws.Run()
 
-func upgradeCheckOrigin(r *http.Request) bool {
-	origin := r.Header["Origin"]
-	if len(origin) == 0 {
-		return true
-	}
-	u, err := url.Parse(origin[0])
-	if err != nil {
-		return false
-	}
-	uh, _, err1 := net.SplitHostPort(u.Host)
-	oh, _, err2 := net.SplitHostPort(r.Host)
-	if err1 != nil || err2 != nil {
-		return false
-	}
-	return equalASCIIFold(uh, oh)
-}
-
-func (app *App) lencakWebsocket() http.HandlerFunc {
-	// uprader
-	var upgrader = websocket.Upgrader{CheckOrigin: upgradeCheckOrigin,}
-
-	return func(w http.ResponseWriter, r *http.Request) {
-		ws, err := upgrader.Upgrade(w, r, nil)
-		if err != nil {
-			log.Errorf("websocket upgrade fail with: %v:", err)
-			return
-		}
-		pingTicker := time.NewTicker(wsPingPeriod)
-
-		defer func() {
-			pingTicker.Stop()
-			ws.Close()
-		}()
-
-		go func() {
-			// write our workspace when they connected
-			msg, err := json.Marshal(app.lencak.workspaces)
-			if err != nil {
-				log.Errorf("websocket error marshalling workspace %s", err.Error())
-				return
-			}
-			ws.SetWriteDeadline(time.Now().Add(wsWriteWait))
-			err = ws.WriteMessage(websocket.TextMessage, msg)
-			if err != nil {
-				return
-			}
-			for {
-				select {
-				case <-app.lencak.sync:
-					msg, err := json.Marshal(app.lencak.workspaces)
-					if err != nil {
-						log.Errorf("websocket error marshalling workspace %s", err.Error())
-						return
-					}
-					err = ws.WriteMessage(websocket.TextMessage, msg)
-					if err != nil {
-						return
-					}
-
-				case <-pingTicker.C:
-					ws.SetWriteDeadline(time.Now().Add(wsWriteWait))
-					if err = ws.WriteMessage(websocket.PingMessage, []byte{}); err != nil {
-						return
-					}
-				}
-			}
-		}()
-
-		// reader
-		ws.SetReadLimit(512)
-		ws.SetReadDeadline(time.Now().Add(wsPongWait))
-		ws.SetPongHandler(func(string) error {
-			ws.SetReadDeadline(time.Now().Add(wsPongWait)); return nil
-		})
-		for {
-			mtype, message, err := ws.ReadMessage()
-			if err != nil {
-				break
-			}
-			if mtype == websocket.TextMessage {
-				// unmarshal
-				var wsMsg WSMessage
-				if err = json.Unmarshal(message, &wsMsg); err != nil {
-					break
-				}
-				log.Infof("websocket receive message w: %s, t: %s, c: %s",
-					wsMsg.Workspace, wsMsg.Task, wsMsg.Command)
-				if wsMsg.Workspace != "" && wsMsg.Task != "" {
-					switch wsMsg.Command {
-					case "start":
-						app.lencak.StartTask(wsMsg.Workspace, wsMsg.Task, wsMsg.Service)
-					case "stop":
-						app.lencak.StopTask(wsMsg.Workspace, wsMsg.Task, wsMsg.Service)
-					default:
-						log.Infof("receive message from websocket %s", string(message))
-					}
-				}
-			}
-		}
-	}
-}
-
-func (app *App) Static(pattern string) func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, req *http.Request) {
-		vars := mux.Vars(req)
-		fi := vars["file"]
-		fp := strings.TrimSuffix(pattern, "{{file}}") + fi
-
-		if b, err := app.asset(fp); err == nil {
-			ext := filepath.Ext(fp)
-
-			w.Header().Set("Content-Type", mime.TypeByExtension(ext))
-			w.WriteHeader(200)
-			w.Write(b)
-			return
-		}
-		log.Printf("[UI] File not found: %s", fp)
-		w.WriteHeader(404)
-	}
+	return app, nil
 }
 
 func (app *App) ListenAndServe(addr string) error {
@@ -231,6 +115,25 @@ func (app *App) ListenAndServe(addr string) error {
 		c, cancel := context.WithTimeout(context.Background(), time.Second*20)
 		defer cancel()
 		return app.server.Shutdown(c)
+	}
+}
+
+func (app *App) Static(pattern string) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, req *http.Request) {
+		vars := mux.Vars(req)
+		fi := vars["file"]
+		fp := strings.TrimSuffix(pattern, "{{file}}") + fi
+
+		if b, err := app.asset(fp); err == nil {
+			ext := filepath.Ext(fp)
+
+			w.Header().Set("Content-Type", mime.TypeByExtension(ext))
+			w.WriteHeader(200)
+			w.Write(b)
+			return
+		}
+		log.Printf("[UI] File not found: %s", fp)
+		w.WriteHeader(404)
 	}
 }
 

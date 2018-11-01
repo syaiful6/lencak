@@ -27,8 +27,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	appInstance := app.NewApp(config, assets.Asset)
-
+	appInstance, err := app.NewApp(config, assets.Asset)
+	if err != nil {
+		log.Fatalln(err)
+		os.Exit(1)
+	}
 	if err = appInstance.ListenAndServe(addr); err != nil {
 		log.Fatalln(err)
 	}

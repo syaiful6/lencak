@@ -2,6 +2,14 @@
 
 
 [[projects]]
+  branch = "master"
+  digest = "1:d33c8b113acab4f2265965f8c69b4ea407c59ed35440876b53f339ffb539c7c1"
+  name = "github.com/docker/go-redis-server"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "e4d48d56d17845ed199548a5366406de7231a4b8"
+
+[[projects]]
   digest = "1:c79fb010be38a59d657c48c6ba1d003a8aa651fa56b579d959d74573b7dff8e1"
   name = "github.com/gorilla/context"
   packages = ["."]
@@ -72,6 +80,7 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
+    "github.com/docker/go-redis-server",
     "github.com/gorilla/mux",
     "github.com/gorilla/websocket",
     "github.com/sirupsen/logrus",

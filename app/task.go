@@ -7,8 +7,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	log "github.com/sirupsen/logrus"
 )
 
 type Task struct {
@@ -82,31 +80,20 @@ func NewTask(name string, executor []string, command string, environment map[str
 	return task
 }
 
-func (t *Task) Start(sync chan bool) chan int {
+func (t *Task) Start() chan int {
 	c1 := make(chan int, 1)
 	if t.ActiveTask == nil {
 		t.activeMu.Lock()
 		t.ActiveTask = t.NewTaskRun()
 		t.activeMu.Unlock()
 		c := make(chan int)
-		select {
-		case sync <- true:
-			log.Infof("success sending event task started for %s", t.Name)
-		default:
-			log.Infof("failed sending event task started for %s", t.Name)
-		}
 
 		t.ActiveTask.Start(c)
 
 		go func() {
 			ex := <-c
 			c1 <- ex
-			select {
-			case sync <- true:
-				log.Infof("success sending event task stopped for %s", t.Name)
-			default:
-				log.Infof("failed sending event task stopped for %s", t.Name)
-			}
+
 			t.activeMu.Lock()
 			t.ActiveTask = nil
 			t.activeMu.Unlock()
@@ -117,7 +104,7 @@ func (t *Task) Start(sync chan bool) chan int {
 
 			if service {
 				time.Sleep(time.Second * 1)
-				t.Start(sync)
+				t.Start()
 				return
 			}
 		}()

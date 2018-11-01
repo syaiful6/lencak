@@ -62,6 +62,7 @@ function update(model, msg) {
       })
 
     case CONNECTED:
+      socket.send(`*4\r\n$6\r\ntstart\r\n$6\r\nlencak\r\n$2\r\nui\r\n:1\r\n`)
       return Object.assign({}, model, {
         connection: SOCK_CONNECTED
       });

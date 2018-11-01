@@ -16,7 +16,6 @@ type Workspace struct {
 	Functions          map[string]*Function
 	Columns            map[string]map[string][]string
 	InheritEnvironment bool
-	sync               chan bool
 }
 
 type Function struct {
@@ -46,7 +45,7 @@ func (ws *Workspace) MarshalJSON() ([]byte, error) {
 }
 
 // NewWorkspace returns a new workspace
-func NewWorkspace(sync chan bool, name string, environment map[string]string, columns map[string]map[string][]string, inheritEnv bool) *Workspace {
+func NewWorkspace(name string, environment map[string]string, columns map[string]map[string][]string, inheritEnv bool) *Workspace {
 	if environment == nil {
 		environment = make(map[string]string)
 	}
@@ -57,7 +56,6 @@ func NewWorkspace(sync chan bool, name string, environment map[string]string, co
 		Functions:          make(map[string]*Function),
 		Columns:            columns,
 		InheritEnvironment: inheritEnv,
-		sync:               sync,
 	}
 	if _, ok := ws.Environment["WORKSPACE"]; !ok {
 		ws.Environment["WORKSPACE"] = name
@@ -65,7 +63,7 @@ func NewWorkspace(sync chan bool, name string, environment map[string]string, co
 	return ws
 }
 
-func configureWorkSpaces(syncChan chan bool, configWorkspaces map[string]*ConfigWorkspace) map[string]*Workspace {
+func configureWorkSpaces(configWorkspaces map[string]*ConfigWorkspace) map[string]*Workspace {
 	workspaces := make(map[string]*Workspace)
 
 	for _, ws := range configWorkspaces {
@@ -76,7 +74,7 @@ func configureWorkSpaces(syncChan chan bool, configWorkspaces map[string]*Config
 			log.Warnf("Workspace %s already exists, merging tasks and environment", ws.Name)
 			workspace = wks
 		} else {
-			workspace = NewWorkspace(syncChan, ws.Name, ws.Environment, ws.Columns, ws.InheritEnvironment)
+			workspace = NewWorkspace(ws.Name, ws.Environment, ws.Columns, ws.InheritEnvironment)
 			workspaces[ws.Name] = workspace
 		}
 
@@ -124,7 +122,7 @@ func configureWorkSpaces(syncChan chan bool, configWorkspaces map[string]*Config
 			task := NewTask(t.Name, t.Executor, t.Command, env, t.Service, t.Stdout,
 				t.Stderr, t.KillSignal, t.Pwd)
 			if task.Service {
-				task.Start(syncChan)
+				task.Start()
 			}
 			workspace.Tasks[t.Name] = task
 		}

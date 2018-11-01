@@ -3,7 +3,7 @@ import stream from 'mithril/stream'
 
 import {ReconnWebsocket, getWebsocketURL} from './service/websocket';
 import {
-  START_TASK, STOP_TASK, CONNECTED, DISCONNECTED, WORKSPACE_REPLACE,
+  START_TASK, STOP_TASK, CONNECTED, DISCONNECTED, WORKSPACE_INIT, SERVER_MESSAGE,
   SOCK_DISCONNECT, SOCK_CONNECTED, REFRESH_CONN
 } from './constant'
 
@@ -20,7 +20,7 @@ const socket = new ReconnWebsocket(getWebsocketURL())
 
 socket.onopen = () => send({type: CONNECTED });
 socket.onclose = () => send({type: DISCONNECTED });
-socket.onmessage = (ev) => send({ type: WORKSPACE_REPLACE, payload: { data: ev.data }});
+socket.onmessage = (ev) => send({ type: SERVER_MESSAGE, payload: { data: ev.data }});
 
 function updateTaskWith(workspaces, workspaceid, taskid, f) {
   return Object.assign({}, workspaces, {
@@ -37,12 +37,11 @@ function update(model, msg) {
   console.log(msg)
   switch (msg.type) {
     case START_TASK:
-      socket.send(JSON.stringify({
-        workspace: msg.payload.workspace,
-        task: msg.payload.task,
-        service: typeof msg.payload.service !== 'boolean' ? false : msg.payload.service,
-        command: 'start'
-      }));
+      socket.send(buildCommand('tstart', [
+        msg.payload.workspace,
+        msg.payload.task,
+        typeof msg.payload.service !== 'boolean' ? 0 : 1
+      ]))
 
       return Object.assign({}, model, {
         workspaces: updateTaskWith(model.workspaces, msg.payload.workspace,
@@ -50,19 +49,18 @@ function update(model, msg) {
       })
 
     case STOP_TASK:
-      socket.send(JSON.stringify({
-        workspace: msg.payload.workspace,
-        task: msg.payload.task,
-        service: typeof msg.payload.service !== 'boolean' ? false : msg.payload.service,
-        command: 'stop'
-      }));
+      socket.send(buildCommand('tstop', [
+        msg.payload.workspace,
+        msg.payload.task,
+        typeof msg.payload.service !== 'boolean' ? 0 : 1
+      ]));
+
      return Object.assign({}, model, {
         workspaces: updateTaskWith(model.workspaces, msg.payload.workspace,
           msg.payload.task, () => ({status: 'Stopped'}))
       })
 
     case CONNECTED:
-      socket.send(`*4\r\n$6\r\ntstart\r\n$6\r\nlencak\r\n$2\r\nui\r\n:1\r\n`)
       return Object.assign({}, model, {
         connection: SOCK_CONNECTED
       });
@@ -72,14 +70,13 @@ function update(model, msg) {
         connection: SOCK_DISCONNECT
       });
 
-    case WORKSPACE_REPLACE:
-      data = parseRawWorkspace(msg.payload.data);
-      if (data) {
-        return Object.assign({}, model, {
-          workspaces: data
-        });
-      }
-      return model;
+    case WORKSPACE_INIT:
+      return Object.assign({}, model, {
+        workspaces: msg.payload.workspaces
+      })
+
+    case SERVER_MESSAGE:
+      return model
 
     case REFRESH_CONN:
       socket.refresh();
@@ -91,9 +88,20 @@ function update(model, msg) {
 }
 
 function parseRawWorkspace(workspaces) {
-  try {
-    return JSON.parse(workspaces);
-  } catch (e) {
-    return;
+  return
+  // try {
+  //   return JSON.parse(workspaces);
+  // } catch (e) {
+  //   return;
+  // }
+}
+
+function buildCommand(cmd, args) {
+  const len = args.length
+  let commandStr = '*' + (len + 1) + '\r\n$' + cmd.length + '\r\n' + cmd + '\r\n';
+  let result = commandStr
+  for (let i = 0; i < len; i++) {
+    result += '$' + ('' + args[i]).length + '\r\n' + args[i] + '\r\n'
   }
+  return result;
 }

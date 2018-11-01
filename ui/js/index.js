@@ -8,7 +8,7 @@ import PageCss from './css/page'
 import { addToDocument } from './css/utils'
 import Workspace from './components/workspace'
 import NavigationList from "./components/navigation-list"
-import {REFRESH_CONN} from './constant'
+import {REFRESH_CONN, WORKSPACE_INIT} from './constant'
 import * as updater from './update';
 
 
@@ -74,6 +74,7 @@ const App = {
 addToDocument(PageCss, {id: 'thatique-css-page'})
 
 requestAnimationFrame(() => {
+  updater.send({type: WORKSPACE_INIT, payload: { workspaces: payloadWorkspaces }});
   m.route(document.body, '/workspaces', {
     '/workspaces': {
       render() {

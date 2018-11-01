@@ -138,26 +138,35 @@ func (app *App) Static(pattern string) func(http.ResponseWriter, *http.Request) 
 }
 
 func (app *App) indexHandler() func(http.ResponseWriter, *http.Request) {
-	tmpl := template.New("index.html")
+	funcMap := template.FuncMap{
+		"marshal": func(v interface {}) template.JS {
+  			a, _ := json.Marshal(v)
+  			return template.JS(a)
+		},
+	}
+	tmpl := template.New("index.html").Funcs(funcMap)
 
-	asset, err := app.asset("assets/templates/index.html")
+	index, err := app.asset("assets/templates/index.html")
 	if err != nil {
-		log.Fatalf("[UI] Error loading index.html: %s", err)
+		log.Fatalf("Error loading index.html: %v", err)
+	}
+	payload, err := app.asset("assets/templates/payload.html")
+	if err != nil {
+		log.Fatalf("Error loading payload.html: %v", err)
 	}
 
-	tmpl, err = tmpl.Parse(string(asset))
+	if tmpl, err =tmpl.Parse(string(index)); err != nil {
+		log.Fatalf("Error parsing index.html: %v", err)
+	}
+	if tmpl, err = tmpl.Parse(string(payload)); err != nil {
+		log.Fatalf("Error parsing payload.html: %v", err)
+	}
 
 	return func(w http.ResponseWriter, req *http.Request) {
-		workspaces, err := json.Marshal(app.lencak.workspaces)
-		if err != nil {
-			log.Printf("error marshaling workspace: %s", err)
-			w.WriteHeader(500)
-			return
-		}
 		data := map[string]interface{}{
 			"Title":      "Websyd",
 			"Page":       "Workspaces",
-			"WorkSpaces": workspaces,
+			"Workspaces": app.lencak.workspaces,
 		}
 
 		b := new(bytes.Buffer)

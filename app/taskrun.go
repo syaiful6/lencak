@@ -152,7 +152,8 @@ func (tr *TaskRun) Start(exitCh chan int) {
 		ps := tr.Cmd.ProcessState
 		sy := ps.Sys().(syscall.WaitStatus)
 
-		if sy.ExitStatus() == 0 {
+		exitCode := sy.ExitStatus()
+		if exitCode == 0 {
 			log.Infof("STDOUT: %s", tr.StdoutBuf.String())
 			log.Infof("STDERR: %s", tr.StderrBuf.String())
 		} else {
@@ -160,13 +161,13 @@ func (tr *TaskRun) Start(exitCh chan int) {
 			log.Errorf("STDERR: %s", tr.StderrBuf.String())
 		}
 
-		ev := &Event{time.Now(), fmt.Sprintf("Process %d exited with status %d", ps.Pid(), sy.ExitStatus())}
+		ev := &Event{time.Now(), fmt.Sprintf("Process %d exited with status %d", ps.Pid(), exitCode)}
 		log.Info(ev.Message)
 		tr.Events = append(tr.Events, ev)
 		log.Info(ps.String())
 
 		tr.Stopped = time.Now()
-		exitCh <- 0
+		exitCh <- exitCode
 	}()
 }
 

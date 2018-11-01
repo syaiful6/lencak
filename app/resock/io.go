@@ -23,12 +23,6 @@ type ChannelWriter struct {
 	writeChan chan<- []byte
 }
 
-func NewWriteChan(c chan []byte) *ChannelWriter {
-	return &ChannelWriter{
-		writeChan: c,
-	}
-}
-
 // Writer implementation
 func (ch *ChannelWriter) Write(p []byte) (int, error) {
 	select {

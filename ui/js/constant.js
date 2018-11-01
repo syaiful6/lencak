@@ -1,6 +1,7 @@
 export const START_TASK = 'START';
 export const STOP_TASK = 'STOP';
-export const WORKSPACE_REPLACE = 'WORKSPACE_REPLACE';
+export const WORKSPACE_INIT = 'WORKSPACE_INIT';
+export const SERVER_MESSAGE = 'SERVER_MESSAGE'
 // connection
 export const CONNECTED = 'CONNECTED';
 export const DISCONNECTED = 'DISCONNECTED';

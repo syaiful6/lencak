@@ -1,6 +1,7 @@
 package resock
 
 import (
+	"bufio"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -37,6 +38,7 @@ func (c *connection) readLoop() {
 	c.ws.SetPongHandler(func(string) error {
 		c.ws.SetReadDeadline(time.Now().Add(pongWait)); return nil
 	})
+	buf := bufio.NewWriter(&ChannelWriter{writeChan: c.srv.messages,})
 	for {
 		select {
 		case <-exit:
@@ -60,9 +62,10 @@ func (c *connection) readLoop() {
 				log.Infof("processing request %s error: %v", req.Name, err)
 				return
 			}
-
-			if _, err = reply.WriteTo(NewWriteChan(c.send)); err != nil {
+			if _, err = reply.WriteTo(buf); err != nil {
 				return
+			} else {
+				buf.Flush()
 			}
 		}
 	}
@@ -86,12 +89,6 @@ func (c *connection) writeLoop() {
 				return
 			}
 			w.Write(message)
-
-			// Add queued chat messages to the current websocket message.
-			n := len(c.send)
-			for i := 0; i < n; i++ {
-				w.Write(<-c.send)
-			}
 
 			if err := w.Close(); err != nil {
 				return

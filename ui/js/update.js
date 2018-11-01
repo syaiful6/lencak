@@ -37,27 +37,28 @@ function update(model, msg) {
   console.log(msg)
   switch (msg.type) {
     case START_TASK:
+      data = typeof msg.payload.service !== 'boolean' ? 0 : msg.payload.service ? 1 : 0;
       socket.send(buildCommand('tstart', [
         msg.payload.workspace,
         msg.payload.task,
-        typeof msg.payload.service !== 'boolean' ? 0 : 1
+        data
       ]))
 
       return Object.assign({}, model, {
         workspaces: updateTaskWith(model.workspaces, msg.payload.workspace,
-          msg.payload.task, () => ({status: 'Running'}))
+          msg.payload.task, () => ({status: 'Running', service: msg.payload.service }))
       })
 
     case STOP_TASK:
       socket.send(buildCommand('tstop', [
         msg.payload.workspace,
         msg.payload.task,
-        typeof msg.payload.service !== 'boolean' ? 0 : 1
+        typeof msg.payload.service !== 'boolean' ? 0 : msg.payload.service ? 1 : 0
       ]));
 
      return Object.assign({}, model, {
         workspaces: updateTaskWith(model.workspaces, msg.payload.workspace,
-          msg.payload.task, () => ({status: 'Stopped'}))
+          msg.payload.task, (t) => ({status: 'Stopped', service: msg.payload.service }))
       })
 
     case CONNECTED:

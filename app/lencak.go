@@ -20,11 +20,11 @@ func NewLencak(config map[string]*ConfigWorkspace) *Lencak {
 }
 
 func (lenc *Lencak) Tstart(ws, tn string, service int) ([][]byte, error) {
-	log.Infof("get %s, %s and %d", ws, tn, service)
+	log.Infof("get tstart %s, %s and %d", ws, tn, service)
 	if _, ok := lenc.workspaces[ws]; ok {
 		if task, ok := lenc.workspaces[ws].Tasks[tn]; ok {
 			if service != 0 {
-				log.Infof("processed %s.%sas service", ws, tn)
+				log.Infof("processed start %s.%s as service", ws, tn)
 				task.serviceMu.Lock()
 				task.Service = true
 				task.serviceMu.Unlock()
@@ -36,7 +36,7 @@ func (lenc *Lencak) Tstart(ws, tn string, service int) ([][]byte, error) {
 				}
 				return [][]byte{[]byte("STARTED"), []byte(ws), []byte(tn),}, nil
 			}
-			log.Infof("processed %s.%sas normal task", ws, tn)
+			log.Infof("processed %s.%s as normal task", ws, tn)
 			task.Start()
 			return [][]byte{[]byte("STARTED"), []byte(ws), []byte(tn),}, nil
 		}
@@ -45,12 +45,12 @@ func (lenc *Lencak) Tstart(ws, tn string, service int) ([][]byte, error) {
 }
 
 func (lenc *Lencak) Tstop(ws, tn string, service int) ([][]byte, error) {
-	log.Infof("get %s, %s and %d", ws, tn, service)
+	log.Infof("get tstop %s, %s and %d", ws, tn, service)
 	if _, ok := lenc.workspaces[ws]; ok {
 		if task, ok := lenc.workspaces[ws].Tasks[tn]; ok {
 			task.serviceMu.Lock()
 			defer task.serviceMu.Unlock()
-			if service != 0 {
+			if service == 0 {
 				task.Service = false
 			}
 			task.Stop()

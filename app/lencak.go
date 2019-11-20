@@ -50,7 +50,7 @@ func (lenc *Lencak) Tstop(ws, tn string, service int) ([][]byte, error) {
 		if task, ok := lenc.workspaces[ws].Tasks[tn]; ok {
 			task.serviceMu.Lock()
 			defer task.serviceMu.Unlock()
-			if service != 0 {
+			if service == 0 {
 				task.Service = false
 			}
 			task.Stop()

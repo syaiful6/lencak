@@ -2,6 +2,7 @@ package resock
 
 import (
 	"bufio"
+	"io"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -48,25 +49,39 @@ func (c *connection) readLoop() {
 			if err != nil {
 				return
 			}
-			req, err := ParseRequest(&ReaderChanCloser{exit: exit, reader: reader,})
-			if err != nil {
-				log.Infof("websocker client error: %v", err)
-				return
-			}
-			log.Infof("processing request %s", req.Name)
-			req.Host = c.host
-			req.ClientChan = clientChan
-			reply, err := c.srv.rsv.Apply(req)
 
-			if err != nil {
-				log.Infof("processing request %s error: %v", req.Name, err)
+			r := bufio.NewReader(&ReaderChanCloser{exit: exit, reader: reader,})
+			if err = c.serveClient(r, buf, clientChan); err != nil {
 				return
 			}
-			if _, err = reply.WriteTo(buf); err != nil {
-				return
-			} else {
-				buf.Flush()
+		}
+	}
+}
+
+func (c *connection) serveClient(reader *bufio.Reader, buf *bufio.Writer, clientChan chan struct{}) error {
+	defer func() {
+		buf.Flush()
+	}()
+	for {
+		req, err := ParseRequest(reader)
+		if err != nil {
+			if err == io.EOF {
+				return nil
 			}
+			log.Infof("websocker client error: %v", err)
+			return err
+		}
+		log.Infof("processing request %s", req.Name)
+		req.Host = c.host
+		req.ClientChan = clientChan
+		reply, err := c.srv.rsv.Apply(req)
+
+		if err != nil {
+			log.Infof("processing request %s error: %v", req.Name, err)
+			return err
+		}
+		if _, err = reply.WriteTo(buf); err != nil {
+			return err
 		}
 	}
 }

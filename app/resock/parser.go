@@ -11,8 +11,7 @@ import (
 )
 
 
-func ParseRequest(conn io.ReadCloser) (*redis.Request, error) {
-	r := bufio.NewReader(conn)
+func ParseRequest(r *bufio.Reader) (*redis.Request, error) {
 	// first line of redis request should be:
 	// *<number of arguments>CRLF
 	line, err := r.ReadString('\n')
@@ -46,7 +45,6 @@ func ParseRequest(conn io.ReadCloser) (*redis.Request, error) {
 		return &redis.Request{
 			Name: strings.ToLower(string(firstArg)),
 			Args: args,
-			Body: conn,
 		}, nil
 	}
 
@@ -62,7 +60,6 @@ func ParseRequest(conn io.ReadCloser) (*redis.Request, error) {
 	return &redis.Request{
 		Name: strings.ToLower(string(fields[0])),
 		Args: args,
-		Body: conn,
 	}, nil
 
 }

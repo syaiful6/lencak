@@ -74,7 +74,9 @@ const App = {
 addToDocument(PageCss, {id: 'thatique-css-page'})
 
 requestAnimationFrame(() => {
-  updater.send({type: WORKSPACE_INIT, payload: { workspaces: payloadWorkspaces }});
+  if (window.payloadWorkspaces != null) {
+    updater.send({type: WORKSPACE_INIT, payload: { workspaces: window.payloadWorkspaces }});
+  }
   m.route(document.body, '/workspaces', {
     '/workspaces': {
       render() {

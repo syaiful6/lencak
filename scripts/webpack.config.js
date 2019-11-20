@@ -1,29 +1,31 @@
 
 /* global __dirname */
-const path = require("path");
-const ExtractTextPlugin = require("extract-text-webpack-plugin");
+const path = require('path');
+const ExtractTextPlugin = require('extract-text-webpack-plugin');
 
 module.exports = {
 
-  context: path.resolve(__dirname, "../ui/js"),
+  context: path.resolve(__dirname, "../browser"),
 
   entry: {
-    index: "../index.js",
+    index: "./app/index.ts",
   },
 
   output: {
-    path: path.resolve(__dirname, "../ui/dist"),
+    path: path.resolve(__dirname, "../browser/dist"),
     filename: "js/[name].js"
+  },
+
+  resolve: {
+    extensions: ['.ts', '.tsx', '.js', '.json'],
   },
 
   module: {
     rules: [
       {
-        test: /\.js$/, // Check for all js files
+        test: /\.(ts|tsx)$/,
         exclude: /node_modules/,
-        use: [{
-          loader: "babel-loader"
-        }]
+        loader: 'ts-loader',
       },
       {
         test: /\.css$/,

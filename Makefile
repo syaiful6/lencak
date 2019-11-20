@@ -2,10 +2,10 @@ build: build-ui bindata
 	go build
 
 build-ui:
-	mkdir -p ui/dist/js \
+	mkdir -p browser/dist/js \
 		&& npm run build \
 		&& mkdir -p assets/js && \
-		cp ui/dist/js/index.js assets/js/ui.js
+		cp browser/dist/js/index.js assets/js/ui.js
 
 bindata: bindata-deps
 	-rm assets/assets.go

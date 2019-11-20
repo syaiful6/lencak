@@ -1,0 +1,7 @@
+{
+  "extends": "./scripts/tsconfig.json",
+  "include": [
+    "browser/app/**/*"
+  ],
+  "exclude": ["node_modules", "browser/test/**/*"]
+}

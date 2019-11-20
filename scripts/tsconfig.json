@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "target": "es5",
+    "module": "commonjs",
+    "strict": true,
+    "declaration": false,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "noImplicitAny": true,
+    "sourceMap": true,
+    "strictNullChecks": true,
+    "removeComments": false,
+    "noUnusedLocals": true,
+    "lib": [
+      "dom",
+      "es5",
+      "es2015.core",
+      "es2015.promise",
+      "es2015.iterable",
+      "es2015.generator"
+    ],
+    "types": [
+      "mocha",
+      "node"
+    ]
+  }
+}

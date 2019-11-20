@@ -16,7 +16,7 @@ config.plugins.push(new UglifyWebpackPlugin({
 config.plugins.push(new CompressionPlugin({
   asset: "[path].gz[query]",
   algorithm: "gzip",
-  test: /\.js$|\.css$|\.html$/,
+  test: /\.js$|\.ts$|\.css$|\.html$/,
   threshold: 10240,
   minRatio: 0
 }));

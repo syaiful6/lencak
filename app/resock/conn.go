@@ -28,7 +28,7 @@ type connection struct {
 func (c *connection) readLoop() {
 	exit := make(chan bool)
 	clientChan := make(chan struct{})
-	defer func () {
+	defer func() {
 		close(exit)
 		close(clientChan)
 		c.srv.unregisterChan <- c
@@ -37,20 +37,21 @@ func (c *connection) readLoop() {
 
 	c.ws.SetReadDeadline(time.Now().Add(pongWait))
 	c.ws.SetPongHandler(func(string) error {
-		c.ws.SetReadDeadline(time.Now().Add(pongWait)); return nil
+		c.ws.SetReadDeadline(time.Now().Add(pongWait))
+		return nil
 	})
-	buf := bufio.NewWriter(&ChannelWriter{writeChan: c.srv.messages,})
+	buf := bufio.NewWriter(&ChannelWriter{writeChan: c.srv.messages})
 	for {
 		select {
 		case <-exit:
 			return
 		default:
-			_, reader, err := c.ws.NextReader();
+			_, reader, err := c.ws.NextReader()
 			if err != nil {
 				return
 			}
 
-			r := bufio.NewReader(&ReaderChanCloser{exit: exit, reader: reader,})
+			r := bufio.NewReader(&ReaderChanCloser{exit: exit, reader: reader})
 			if err = c.serveClient(r, buf, clientChan); err != nil {
 				return
 			}
@@ -99,7 +100,7 @@ func (c *connection) writeLoop() {
 				c.writeControl(websocket.CloseMessage)
 				return
 			}
-			w, err := c.ws.NextWriter(websocket.TextMessage)
+			w, err := c.ws.NextWriter(websocket.BinaryMessage)
 			if err != nil {
 				return
 			}

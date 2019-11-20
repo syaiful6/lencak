@@ -15,5 +15,9 @@ ui/dist/css
 ui/dist/js
 assets/js
 
+browser/dist/css
+browser/dist/js
+assets/js
+
 workspace.yaml
 workspace.yml
